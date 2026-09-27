@@ -123,6 +123,8 @@ private fun SampleScreen(
                             modifier = Modifier.weight(1f),
                         )
                     }
+                    // A lone last button keeps its half of the row.
+                    if (pair.size == 1) Spacer(Modifier.weight(1f))
                 }
             }
         }

@@ -15,7 +15,7 @@ fun ArrivalStyle.Companion.cut(
     accent: Color,
     duration: Int = 700,
 ): ArrivalStyle = ArrivalStyle(
-    front = FrontShape.Slit,
+    front = FrontShape.Slit(),
     edge = EdgeCharacter(
         strokeWidth = 2.dp,
         glowWidth = 14.dp,

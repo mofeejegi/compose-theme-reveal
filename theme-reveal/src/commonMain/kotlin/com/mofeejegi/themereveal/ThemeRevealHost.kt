@@ -13,17 +13,22 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.geometry.center
 import androidx.compose.ui.geometry.takeOrElse
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.drawscope.ContentDrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.clipPath
 import androidx.compose.ui.graphics.isSpecified
 import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.graphics.layer.GraphicsLayer
+import androidx.compose.ui.graphics.rememberGraphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.IntOffset
 import com.mofeejegi.themereveal.api.front.FrontShape
+import com.mofeejegi.themereveal.api.tiles.TileTurn
 import kotlin.math.PI
 import kotlin.math.abs
 import kotlin.math.cos
 import kotlin.math.max
+import kotlin.math.min
 import kotlin.math.pow
 import kotlin.math.roundToInt
 import kotlin.math.sin
@@ -32,8 +37,11 @@ import kotlin.math.withSign
 /**
  * Dual-composition clip reveal. [content] is ONE tree, composed once with the
  * committed value and — only while a reveal is in flight — a second time with
- * the incoming value, clipped to the animated mask. Both worlds stay live.
- * Never snapshots.
+ * the incoming value, clipped to the animated mask. A tile front draws one
+ * world back as cards instead — the committed world flipping away over the
+ * incoming one, or the incoming world unfolding over the committed one — from
+ * a recording that is redone whenever that world redraws. Both worlds stay
+ * live. Never snapshots.
  *
  * All reveal drama (edge stroke, glow, shake) draws inside this host's own
  * layer: a sibling composed after the host (a floating identity object, say)
@@ -50,14 +58,20 @@ fun <T> ThemeRevealHost(
     content: @Composable (T) -> Unit,
 ) {
     val maskPath = remember { Path() } // allocated once, rebuilt per frame
+    // Tile reveals draw a world back as cards, from these recordings.
+    val committedLayer = rememberGraphicsLayer()
+    val incomingLayer = rememberGraphicsLayer()
+    val board = remember { TileBoard() }
     Box(modifier = modifier.offset { shakeOffset(controller) }) {
-        content(controller.current)
+        Box(Modifier.committedWorld(controller, committedLayer)) {
+            content(controller.current)
+        }
         val incoming = controller.incoming
         if (incoming != null) {
             Box(
                 Modifier
                     .matchParentSize()
-                    .revealClip(controller, maskPath)
+                    .revealIncoming(controller, maskPath, committedLayer, incomingLayer, board)
             ) {
                 content(incoming)
             }
@@ -88,11 +102,53 @@ private fun androidx.compose.ui.unit.Density.shakeOffset(
     )
 }
 
-/** Clips the incoming world to the mask and draws the edge drama along it. */
-private fun Modifier.revealClip(
+/**
+ * The committed world. While its cards flip away it is recorded into [layer]
+ * rather than drawn, and the incoming side draws it back as those cards; the
+ * read of [RevealController.incoming] redraws it when a reveal starts or ends.
+ */
+private fun Modifier.committedWorld(
+    controller: RevealController<*>,
+    layer: GraphicsLayer,
+): Modifier = drawWithContent {
+    val front = controller.style.front
+    if (controller.incoming != null && front is FrontShape.Tiles && front.turn == TileTurn.Flip) {
+        layer.record { this@drawWithContent.drawContent() }
+    } else {
+        drawContent()
+    }
+}
+
+/** Draws the incoming world through the current front: a mask, or a board of cards. */
+private fun Modifier.revealIncoming(
     controller: RevealController<*>,
     maskPath: Path,
+    committedLayer: GraphicsLayer,
+    incomingLayer: GraphicsLayer,
+    board: TileBoard,
 ): Modifier = drawWithContent {
+    val style = controller.style
+    when (val front = style.front) {
+        // The mask path is idle during a tile reveal; it clips the still cards instead.
+        is FrontShape.Tiles -> drawTileReveal(
+            style = style,
+            tiles = front,
+            progress = controller.progress.floatValue,
+            origin = controller.origin.takeOrElse { size.center },
+            outgoing = committedLayer,
+            incoming = incomingLayer,
+            board = board,
+            clip = maskPath,
+        )
+        else -> drawMaskReveal(controller, maskPath)
+    }
+}
+
+/** Clips the incoming world to the mask and draws the edge drama along it. */
+private fun ContentDrawScope.drawMaskReveal(
+    controller: RevealController<*>,
+    maskPath: Path,
+) {
     val style = controller.style
     val progress = controller.progress.floatValue
     val time = controller.timeSeconds.floatValue
@@ -109,17 +165,19 @@ private fun Modifier.revealClip(
     }
 
     maskPath.reset()
-    when (style.front) {
+    when (val front = style.front) {
         FrontShape.Radial -> radialMask(
             maskPath, style, progress, time, intensity,
             coverFrom = baseOrigin, origin = origin, swayPx = swayPx,
         )
-        FrontShape.Slit -> slitMask(maskPath, style, progress, time, intensity, origin)
+        is FrontShape.Slit -> slitMask(maskPath, style, front.angle, progress, time, intensity, origin)
+        is FrontShape.Box -> boxMask(maskPath, style, front.angle, progress, time, intensity, origin)
+        is FrontShape.Tiles -> Unit // drawn as cards, never as a mask
     }
     maskPath.close()
 
     clipPath(maskPath) {
-        this@drawWithContent.drawContent()
+        this@drawMaskReveal.drawContent()
     }
 
     if (progress > 0f && progress < 1f) {
@@ -193,45 +251,149 @@ private fun DrawScope.radialMask(
 }
 
 /**
- * The slit mask: a horizontal band parting from the origin — two straight
- * fronts, one rising, one falling. Built as one closed loop whose vertical
- * closures overshoot the canvas, so only the horizontal fronts — and their
- * stroke and glow — ever render.
+ * The slit mask: a band parting from the origin — two straight fronts moving
+ * apart across their own direction ([angle] degrees clockwise from
+ * horizontal). Built as one closed loop whose ends overshoot the canvas, so
+ * only the two fronts — and their stroke and glow — ever render.
  */
 private fun DrawScope.slitMask(
     path: Path,
     style: ArrivalStyle,
+    angle: Float,
     progress: Float,
     time: Float,
     intensity: Float,
     origin: Offset,
 ) {
+    // The band's own frame: "along" runs down the fronts, "across" is the way they part.
+    val radians = angle * DEGREES_TO_RADIANS
+    val alongX = cos(radians)
+    val alongY = sin(radians)
+    val acrossX = -alongY
+    val acrossY = alongX
+
+    // The canvas's reach from the origin, measured in that frame.
+    var alongMin = Float.MAX_VALUE
+    var alongMax = -Float.MAX_VALUE
+    var acrossReach = 0f
+    forEachCorner { cornerX, cornerY ->
+        val dx = cornerX - origin.x
+        val dy = cornerY - origin.y
+        val along = dx * alongX + dy * alongY
+        alongMin = min(alongMin, along)
+        alongMax = max(alongMax, along)
+        acrossReach = max(acrossReach, abs(dx * acrossX + dy * acrossY))
+    }
+
     val maxWobblePx = style.edge.wobble.maxOfOrNull { it.amplitude.toPx() } ?: 0f
-    val coverHalf = max(origin.y, size.height - origin.y) + maxWobblePx
-    val half = progress * coverHalf
+    val half = progress * (acrossReach + maxWobblePx)
     val overshoot = style.edge.glowWidth.toPx() + style.edge.strokeWidth.toPx() +
         style.shake.toPx() + maxWobblePx
-    val left = -overshoot
-    val span = size.width + 2 * overshoot
-    val topY = origin.y - half
-    val bottomY = origin.y + half
+    val start = alongMin - overshoot
+    val span = alongMax - alongMin + 2 * overshoot
 
     // One loop, the perimeter parameter carried through both edges so their
     // wobble phases differ instead of mirroring.
     var i = 0
     while (i <= SLIT_STEPS) {
         val t = i / SLIT_STEPS.toFloat()
-        val y = topY + wobbleDisplacement(style, t * TWO_PI, time, intensity)
-        if (i == 0) path.moveTo(left, y) else path.lineTo(left + span * t, y)
+        val along = start + span * t
+        val across = -half + wobbleDisplacement(style, t * TWO_PI, time, intensity)
+        val x = origin.x + along * alongX + across * acrossX
+        val y = origin.y + along * alongY + across * acrossY
+        if (i == 0) path.moveTo(x, y) else path.lineTo(x, y)
         i++
     }
     i = 0
     while (i <= SLIT_STEPS) {
         val t = i / SLIT_STEPS.toFloat()
-        val y = bottomY + wobbleDisplacement(style, (1f + t) * TWO_PI, time, intensity)
-        path.lineTo(left + span * (1f - t), y)
+        val along = start + span * (1f - t)
+        val across = half + wobbleDisplacement(style, (1f + t) * TWO_PI, time, intensity)
+        path.lineTo(
+            origin.x + along * alongX + across * acrossX,
+            origin.y + along * alongY + across * acrossY,
+        )
         i++
     }
+}
+
+/**
+ * The box mask: a rectangle growing from the origin, turned [angle] degrees
+ * clockwise and proportioned so every side reaches the canvas edge at the
+ * same moment. Wobble pushes each side out along its own normal and each
+ * corner along both of its sides' normals, so the corners stay square.
+ */
+private fun DrawScope.boxMask(
+    path: Path,
+    style: ArrivalStyle,
+    angle: Float,
+    progress: Float,
+    time: Float,
+    intensity: Float,
+    origin: Offset,
+) {
+    // The box's own axes.
+    val radians = angle * DEGREES_TO_RADIANS
+    val axisXx = cos(radians)
+    val axisXy = sin(radians)
+    val axisYx = -axisXy
+    val axisYy = axisXx
+
+    // How far the box must reach along each axis to cover the canvas.
+    var reachX = 0f
+    var reachY = 0f
+    forEachCorner { cornerX, cornerY ->
+        val dx = cornerX - origin.x
+        val dy = cornerY - origin.y
+        reachX = max(reachX, abs(dx * axisXx + dy * axisXy))
+        reachY = max(reachY, abs(dx * axisYx + dy * axisYy))
+    }
+
+    val maxWobblePx = style.edge.wobble.maxOfOrNull { it.amplitude.toPx() } ?: 0f
+    val halfX = progress * (reachX + maxWobblePx)
+    val halfY = progress * (reachY + maxWobblePx)
+    val perimeter = max(4f * (halfX + halfY), 1f)
+
+    // Clockwise from the top-left corner: top, right, bottom, left sides.
+    var walked = 0f
+    for (side in 0 until 4) {
+        val fromX = if (side == 0 || side == 3) -halfX else halfX
+        val fromY = if (side <= 1) -halfY else halfY
+        val toX = if (side <= 1) halfX else -halfX
+        val toY = if (side == 0 || side == 3) -halfY else halfY
+        val sideLength = if (side % 2 == 0) 2f * halfX else 2f * halfY
+        // The side's outward normal.
+        val normalX = if (side == 1) 1f else if (side == 3) -1f else 0f
+        val normalY = if (side == 0) -1f else if (side == 2) 1f else 0f
+        for (step in 0 until BOX_STEPS) {
+            val t = step / BOX_STEPS.toFloat()
+            val offset = wobbleDisplacement(
+                style, (walked + t * sideLength) / perimeter * TWO_PI, time, intensity,
+            )
+            var localX = fromX + (toX - fromX) * t
+            var localY = fromY + (toY - fromY) * t
+            if (step == 0) {
+                // A corner moves out along both of its sides, keeping it square.
+                localX += offset * (if (fromX < 0f) -1f else 1f)
+                localY += offset * (if (fromY < 0f) -1f else 1f)
+            } else {
+                localX += offset * normalX
+                localY += offset * normalY
+            }
+            val x = origin.x + localX * axisXx + localY * axisYx
+            val y = origin.y + localX * axisXy + localY * axisYy
+            if (side == 0 && step == 0) path.moveTo(x, y) else path.lineTo(x, y)
+        }
+        walked += sideLength
+    }
+}
+
+/** Runs [block] with each corner of the canvas. */
+private inline fun DrawScope.forEachCorner(block: (x: Float, y: Float) -> Unit) {
+    block(0f, 0f)
+    block(size.width, 0f)
+    block(0f, size.height)
+    block(size.width, size.height)
 }
 
 /** The summed wobble bands at [param] (radians along the front's perimeter). */
@@ -281,8 +443,10 @@ private fun Modifier.blockAndAccelerate(controller: RevealController<*>): Modifi
     }
 
 private const val TWO_PI = (2 * PI).toFloat()
+private const val DEGREES_TO_RADIANS = (PI / 180).toFloat()
 private const val STEP = TWO_PI / 128f
 private const val SLIT_STEPS = 64
+private const val BOX_STEPS = 32
 
 // Composite where all passes overlap (the front line) ≈ 1 − (1 − α)³ ≈ 0.34,
 // matching the single flat band this replaced; each step outward drops one pass.

@@ -6,12 +6,18 @@ import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Immutable
 import androidx.compose.ui.graphics.Color
 import com.mofeejegi.themereveal.ArrivalStyle
+import com.mofeejegi.themereveal.styles.aperture
 import com.mofeejegi.themereveal.styles.bloom
+import com.mofeejegi.themereveal.styles.cascade
 import com.mofeejegi.themereveal.styles.chaos
+import com.mofeejegi.themereveal.styles.curtain
 import com.mofeejegi.themereveal.styles.cut
+import com.mofeejegi.themereveal.styles.flipboard
 import com.mofeejegi.themereveal.styles.iris
 import com.mofeejegi.themereveal.styles.paperBurn
 import com.mofeejegi.themereveal.styles.rift
+import com.mofeejegi.themereveal.styles.shutters
+import com.mofeejegi.themereveal.styles.slash
 
 /** One world the sample can reveal. ThemeReveal is generic over this type: use your own theme. */
 @Immutable
@@ -58,14 +64,20 @@ val Palettes: List<Palette> = listOf(
 /** The palette after [palette], wrapping round. */
 fun List<Palette>.after(palette: Palette): Palette = this[(indexOf(palette) + 1) % size]
 
-/** The library's six preset arrivals, each dressed in the incoming palette's accent. */
+/** The library's preset arrivals, each dressed in the incoming palette's accent. */
 enum class Arrival(val label: String) {
     Iris("Iris"),
     Cut("Cut"),
     Bloom("Bloom"),
     Rift("Rift"),
     Chaos("Chaos"),
-    PaperBurn("Paper burn");
+    PaperBurn("Paper burn"),
+    Curtain("Curtain"),
+    Slash("Slash"),
+    Aperture("Aperture"),
+    Flipboard("Flipboard"),
+    Cascade("Cascade"),
+    Shutters("Shutters");
 
     fun style(incoming: Palette): ArrivalStyle = when (this) {
         Iris -> ArrivalStyle.iris(incoming.accent)
@@ -74,6 +86,12 @@ enum class Arrival(val label: String) {
         Rift -> ArrivalStyle.rift(incoming.accent)
         Chaos -> ArrivalStyle.chaos(incoming.accent)
         PaperBurn -> ArrivalStyle.paperBurn(ember = BurnEmber, char = BurnChar)
+        Curtain -> ArrivalStyle.curtain(incoming.accent)
+        Slash -> ArrivalStyle.slash(incoming.accent)
+        Aperture -> ArrivalStyle.aperture(incoming.accent)
+        Flipboard -> ArrivalStyle.flipboard(incoming.accent)
+        Cascade -> ArrivalStyle.cascade(incoming.accent)
+        Shutters -> ArrivalStyle.shutters(incoming.accent)
     }
 }
 
