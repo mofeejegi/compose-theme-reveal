@@ -9,7 +9,7 @@
 
 A Compose Multiplatform library that reveals a new theme *through* the old one. The incoming world is composed alongside the current one and uncovered behind an animated mask (an expanding front, a parting slit or a growing box, with its own edge, glow, wobble and shake), or card by card across a board that flips, sweeps or unfolds in perspective. Each theme can arrive with its own personality.
 
-Runs on **Android**, **iOS**, **Desktop (JVM)** and **Web (Wasm)**.
+Runs on **Android**, **iOS**, **Desktop (JVM)** and **Web (Wasm and JS)**.
 
 <img src="banner.png" alt="Compose Theme Reveal">
 
