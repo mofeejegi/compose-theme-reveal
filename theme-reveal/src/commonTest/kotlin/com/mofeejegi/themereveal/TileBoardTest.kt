@@ -28,6 +28,17 @@ class TileBoardTest {
     }
 
     @Test
+    fun cardsNeverGetSmallerThanAPixel() {
+        val board = TileBoard().apply {
+            layout(40f, 30f, 0.25f, 0.25f, TileOrder.Random(), originX = 20f, originY = 15f)
+        }
+        assertEquals(40, board.columns)
+        assertEquals(30, board.rows)
+        assertTrue(board.edgesX.toList().zipWithNext().all { (a, b) -> b > a })
+        assertTrue(board.edgesY.toList().zipWithNext().all { (a, b) -> b > a })
+    }
+
+    @Test
     fun aCardAsWideAsTheHostMakesStrips() {
         val board = board(TileOrder.Sweep(angle = 90f), cardWidth = 1080f)
         assertEquals(1, board.columns)

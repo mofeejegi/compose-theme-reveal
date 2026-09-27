@@ -83,8 +83,9 @@ internal class TileBoard {
         laidOutOriginX = originX
         laidOutOriginY = originY
 
-        columns = max(1, (width / cardWidth).roundToInt())
-        rows = max(1, (height / cardHeight).roundToInt())
+        // At most one card per pixel, so every card keeps a real width and height.
+        columns = (width / cardWidth).roundToInt().coerceIn(1, max(1, width.toInt()))
+        rows = (height / cardHeight).roundToInt().coerceIn(1, max(1, height.toInt()))
         edgesX = FloatArray(columns + 1) { (it * width / columns).roundToInt().toFloat() }
         edgesY = FloatArray(rows + 1) { (it * height / rows).roundToInt().toFloat() }
         places = when (order) {
@@ -208,6 +209,8 @@ internal fun ContentDrawScope.drawTileReveal(
         board.forEachCard { index, column, row, left, top, right, bottom ->
             val turn = cardTurn(places[index], progress)
             if (turn <= 0f || turn >= 1f) return@forEachCard
+            // Only an empty host leaves a card without area; it has nothing to turn.
+            if (right <= left || bottom <= top) return@forEachCard
             val centerX = (left + right) / 2f
             val centerY = (top + bottom) / 2f
             val depth = TILE_DEPTH * sqrt((right - left) * (bottom - top))

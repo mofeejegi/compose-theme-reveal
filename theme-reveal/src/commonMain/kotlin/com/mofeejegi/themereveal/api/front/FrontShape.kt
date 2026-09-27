@@ -35,17 +35,26 @@ sealed interface FrontShape {
 
     /**
      * The host as a board of cards that turn one at a time from the old world
-     * to the new. [width] and [height] are the target card size — the board
-     * fits whole cards to the host, so they come out close to it — and
-     * [Dp.Infinity] spans the host: `width = Dp.Infinity` makes full-width
-     * strips. [order] decides when each card goes and [turn] how. Of the edge
-     * treatment only the accent and stroke width apply, as a rim on each
-     * moving card; wobble, glow, char and sway belong to the drawn fronts.
+     * to the new. [width] and [height] are the target card size and must be
+     * positive — the board fits whole cards to the host, so they come out
+     * close to it, and never under a pixel — and [Dp.Infinity] spans the
+     * host: `width = Dp.Infinity` makes full-width strips. [order] decides
+     * when each card goes and [turn] how. Of the edge treatment only the
+     * accent and stroke width apply, as a rim on each moving card; wobble,
+     * glow, char and sway belong to the drawn fronts.
      */
     data class Tiles(
         val width: Dp = 64.dp,
         val height: Dp = 64.dp,
         val order: TileOrder = TileOrder.Random(),
         val turn: TileTurn = TileTurn.Flip,
-    ) : FrontShape
+    ) : FrontShape {
+        init {
+            // Rejects zero, negative and Dp.Unspecified sizes (an unspecified Dp
+            // compares false against everything); Dp.Infinity passes.
+            require(width > 0.dp && height > 0.dp) {
+                "Tiles needs a positive card size, got $width × $height"
+            }
+        }
+    }
 }
