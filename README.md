@@ -7,15 +7,15 @@
 [![API](https://img.shields.io/badge/API-24%2B-brightgreen.svg?style=flat)](https://android-arsenal.com/api?level=24)
 [![Maven Central](https://img.shields.io/maven-central/v/com.mofeejegi.themereveal/theme-reveal-compose/0.1.0-alpha01)](https://central.sonatype.com/artifact/com.mofeejegi.themereveal/theme-reveal-compose/0.1.0-alpha01)
 
-A Compose Multiplatform library that reveals a new theme *through* the old one. The incoming world is composed alongside the current one and uncovered behind an animated mask: an expanding front or a parting slit, with its own edge, glow, wobble and shake. Each theme can arrive with its own personality.
+A Compose Multiplatform library that reveals a new theme *through* the old one. The incoming world is composed alongside the current one and uncovered behind an animated mask (an expanding front, a parting slit or a growing box, with its own edge, glow, wobble and shake), or card by card across a board that flips, sweeps or unfolds in perspective. Each theme can arrive with its own personality.
 
-Runs on **Android**, **iOS**, **Desktop (JVM)** and **Web (Wasm)**.
+Runs on **Android**, **iOS**, **Desktop (JVM)** and **Web (Wasm and JS)**.
 
 <img src="banner.png" alt="Compose Theme Reveal">
 
 ## How it works
 
-- `ThemeRevealHost` composes your content once with the committed theme and, only while a reveal runs, a second time with the incoming theme, clipped to the animated mask. Both worlds stay live; nothing is snapshotted.
+- `ThemeRevealHost` composes your content once with the committed theme and, only while a reveal runs, a second time with the incoming theme, clipped to the animated mask or drawn as turning cards. Both worlds stay live; nothing is snapshotted.
 - `RevealController` owns the theme value. `revealTo` suspends until the reveal reaches full coverage, and only then commits the new value.
 - The library is generic over the theme type: a Material `ColorScheme`, your own tokens, an enum. It depends only on Compose runtime, foundation and ui.
 
@@ -64,7 +64,7 @@ fun App() {
 
 ## Arrival styles
 
-Six presets ship with the library, each an extension on `ArrivalStyle.Companion`:
+Twelve presets ship with the library, each an extension on `ArrivalStyle.Companion`:
 
 | Preset | Character |
 |---|---|
@@ -74,12 +74,18 @@ Six presets ship with the library, each an extension on `ArrivalStyle.Companion`
 | `ArrivalStyle.rift(accent)` | A broad living wobble, a glowing front and a slight world-shake |
 | `ArrivalStyle.chaos(accent)` | Jagged shards, a thick blast line and the hardest shake in the set |
 | `ArrivalStyle.paperBurn(ember, char)` | A crackling ember line with a charred rim behind it |
+| `ArrivalStyle.curtain(accent)` | Two vertical fronts drawing apart like stage drapes, with a slow fabric swell |
+| `ArrivalStyle.slash(accent)` | A fast diagonal cut: a razor-thin line and a jolt of shake |
+| `ArrivalStyle.aperture(accent)` | A rectangular frame opening from the origin, with square corners |
+| `ArrivalStyle.flipboard(accent)` | The old world as a board of cards that flip away in a shuffled order, in perspective |
+| `ArrivalStyle.cascade(accent)` | The new world unfolds over the old, card by card, in a diagonal wave |
+| `ArrivalStyle.shutters(accent)` | Full-width slats flip away from top to bottom, like a blind |
 
 Or build your own:
 
 ```kotlin
 val style = ArrivalStyle(
-    front = FrontShape.Radial,              // or FrontShape.Slit
+    front = FrontShape.Radial,              // or Slit(angle), Box(angle), Tiles(width, height, order, turn)
     edge = EdgeCharacter(
         wobble = listOf(WobbleBand(amplitude = 8.dp, frequency = 7f, speed = 3f)),
         strokeWidth = 2.dp,
@@ -105,7 +111,7 @@ val style = ArrivalStyle(
 
 ## Sample
 
-The sample shows all six presets, stepping through six palettes. The UI lives in `sample/shared`; each platform has its own entry point:
+The sample shows all twelve presets, stepping through six palettes. The UI lives in `sample/shared`; each platform has its own entry point:
 
 - **Android:** `./gradlew :sample:androidApp:installDebug`
 - **Desktop:** `./gradlew :sample:desktopApp:run`

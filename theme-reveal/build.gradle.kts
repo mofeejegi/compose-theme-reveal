@@ -33,10 +33,13 @@ kotlin {
     }
     iosArm64()
     iosSimulatorArm64()
+    js {
+        browser()
+        binaries.executable()
+    }
     @OptIn(ExperimentalWasmDsl::class)
     wasmJs {
         browser()
-        // Compose refuses browser tests without an executable, which bundles Skiko (CMP-4906).
         binaries.executable()
     }
 

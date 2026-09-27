@@ -3,9 +3,9 @@ package com.mofeejegi.themereveal.styles
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import com.mofeejegi.themereveal.ArrivalStyle
-import com.mofeejegi.themereveal.styles.edge.EdgeCharacter
-import com.mofeejegi.themereveal.styles.edge.WobbleBand
-import com.mofeejegi.themereveal.styles.envelope.Envelope
+import com.mofeejegi.themereveal.api.edge.EdgeCharacter
+import com.mofeejegi.themereveal.api.edge.WobbleBand
+import com.mofeejegi.themereveal.api.envelope.Envelope
 
 /**
  * A chaos arrival: the new world detonates through the old. Sharpened bands

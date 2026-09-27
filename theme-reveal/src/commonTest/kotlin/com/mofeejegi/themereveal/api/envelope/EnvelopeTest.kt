@@ -1,4 +1,4 @@
-package com.mofeejegi.themereveal.styles.envelope
+package com.mofeejegi.themereveal.api.envelope
 
 import kotlin.test.Test
 import kotlin.test.assertEquals

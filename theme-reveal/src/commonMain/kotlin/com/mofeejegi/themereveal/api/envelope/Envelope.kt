@@ -1,4 +1,4 @@
-package com.mofeejegi.themereveal.styles.envelope
+package com.mofeejegi.themereveal.api.envelope
 
 import androidx.compose.runtime.Immutable
 

@@ -4,9 +4,9 @@ import androidx.compose.runtime.Immutable
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import com.mofeejegi.themereveal.styles.edge.EdgeCharacter
-import com.mofeejegi.themereveal.styles.envelope.Envelope
-import com.mofeejegi.themereveal.styles.front.FrontShape
+import com.mofeejegi.themereveal.api.edge.EdgeCharacter
+import com.mofeejegi.themereveal.api.envelope.Envelope
+import com.mofeejegi.themereveal.api.front.FrontShape
 
 /**
  * The personality of one reveal: how the incoming world's front looks and
