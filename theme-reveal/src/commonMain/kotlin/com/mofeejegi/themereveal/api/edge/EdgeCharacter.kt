@@ -1,4 +1,4 @@
-package com.mofeejegi.themereveal.styles.edge
+package com.mofeejegi.themereveal.api.edge
 
 import androidx.compose.runtime.Immutable
 import androidx.compose.ui.graphics.Color

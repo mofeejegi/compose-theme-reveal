@@ -19,7 +19,7 @@ import androidx.compose.ui.graphics.isSpecified
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.IntOffset
-import com.mofeejegi.themereveal.styles.front.FrontShape
+import com.mofeejegi.themereveal.api.front.FrontShape
 import kotlin.math.PI
 import kotlin.math.abs
 import kotlin.math.cos

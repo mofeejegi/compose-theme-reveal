@@ -1,4 +1,4 @@
-package com.mofeejegi.themereveal.styles.front
+package com.mofeejegi.themereveal.api.front
 
 /**
  * The mask's geometry: what shape the reveal front takes as it grows from
