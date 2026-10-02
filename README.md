@@ -11,6 +11,8 @@ A Compose Multiplatform library that reveals a new theme *through* the old one. 
 
 Runs on **Android**, **iOS**, **Desktop (JVM)** and **Web (Wasm and JS)**.
 
+Demo it here: https://mofeejegi-portfolio.web.app/libraries/themereveal
+
 <img src="banner.png" alt="Compose Theme Reveal">
 
 ## How it works
